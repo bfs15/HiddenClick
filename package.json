@@ -1,0 +1,11 @@
+{
+	"happiness": {
+		"globals": [
+			"chrome",
+			"browser",
+			"location",
+			"XMLHttpRequest",
+			"MutationObserver"
+		]
+	}
+}
