@@ -14,7 +14,7 @@ var HiddenClick = true;
 // define //
 
 // amount of time(in ms) after mouseover before page load
-var loadDelay = 2000;
+var loadDelay = 800;
 // if you want to open links from other domains
 var crossOrigin = true;
 
@@ -27,18 +27,18 @@ createEventsToChildElems(body);
 var observer = new MutationObserver(function (mutations) {
 	// attribute mutation not only added nodes
 	console.log(' \n mutations \n ', mutations, '\n');
-	mutations.forEach(function (mutation) {
-		mutation.addedNodes.forEach(function (addedNode) {
-			createEventsToChildElems(addedNode);
-		});
-	});
+	for (var i = 0; i < mutations.length; i++) {
+		for (var j = 0; j < mutations[i].addedNodes.length; j++) {
+			createEventsToChildElems(mutations[i].addedNodes[j]);
+		}
+	}
 });
 
 observer.observe(body,
 	{ childList: true,
 	attributes: true,
 	attributeFilter: ['href'], // test this
-	characterData: true, // prob not actually
+	characterData: true, // prob should be false
 	subtree: true });
 
 // adds events to child elems of argument that have href
@@ -78,10 +78,12 @@ function setRequestedAll (elem) {
 	var href;
 
 	if (elem.hostname === location.hostname) {
-		href = elem.pathname;	// for cases of relative href=""/path/somewhere"
+		href = elem.pathname + elem.search;	// for cases of relative href="/pathname?search"
 	} else {
 		href = elem.href;
 	}
+
+	console.log(' \n setting all:', href, 'as requested \n ');
 	var linkElems = document.querySelectorAll('[href*="' + href + '"]');
 
 	linkElems.forEach(function (linkElem) {

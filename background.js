@@ -37,15 +37,34 @@ function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	// on normal window
 		if (changeInfo.status === 'loading') {
 			historyDelete = false;
+			discardOtherTabs(tabId);
 			executeScript(tabId);
 		}
 	} else {
 	// on Hidden Click window
 		historyDelete = true;
 		if (changeInfo.status === 'complete' && tabInfo.index !== 0) {
-			chrome.tabs.discard(tabId); // see if this removes from cache
+			chrome.tabs.discard(tabId);
 		}
 	}
+}
+
+function discardOtherTabs (tabId) {
+	chrome.tabs.get(tabId, function (tab) {
+		chrome.tabs.getAllInWindow(wId, function (tabs) {
+			for (var i = 1; i < tabs.length; i++) {
+				if (tabs[i].url === tab.url) {
+				// when you find the same tab that is loading on the HC window
+					// let it load and discard all remaining tabs
+					for (var j = i + 1; j < tabs.length; j++) {
+						chrome.tabs.discard(tabs[j].id);
+					}
+					return;
+				}
+				chrome.tabs.discard(tabs[i].id);
+			}
+		});
+	});
 }
 
 function executeScript (tabId) {
