@@ -27,36 +27,31 @@ function disable () {
 }
 
 function tabsOnActivated (activeInfo) {
-	executeScript(activeInfo.id);
+	executeScript(activeInfo.tabId);
 }
 
-var historyDelay = 100;
-var historyRange = 400;
-// TODO: reapply evnts on content script, remove this funct
+var historyDelete = false; // see onVisited
+
 function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	if (tabInfo.windowId !== wId) {
 	// on normal window
 		if (changeInfo.status === 'loading') {
+			historyDelete = false;
 			executeScript(tabId);
 		}
 	} else {
 	// on Hidden Click window
+		historyDelete = true;
 		if (changeInfo.status === 'complete' && tabInfo.index !== 0) {
-			chrome.tabs.remove(tabId);
-			// console.log('completed on HC window', Date.now());
-			setTimeout(function () {
-				// console.log('deleted in range: ', Date.now() - historyRange, Date.now());
-				// chrome.history.deleteRange({
-				// 	startTime: Date.now() - 10,
-				// 	endTime: Date.now()
-				// });
-			}, historyDelay);
+			chrome.tabs.discard(tabId); // see if this removes from cache
 		}
 	}
 }
 
 function executeScript (tabId) {
-	chrome.tabs.executeScript(tabId, {file: 'Hidden Click.js', runAt: 'document_end'});
+	chrome.tabs.executeScript(tabId,
+		{file: 'Hidden Click.js',
+		runAt: 'document_end'});
 }
 
 function createWindow () {
@@ -69,15 +64,21 @@ function onWindowOpen (win) {
 	wId = win.id;
 }
 
-// TODO
-// chrome.history.onVisited.addListener(onVisited);
-// function onVisited (historyItem) {
-// 	console.log('onVisited', historyItem);
-// }
+var historyRange = 100;
+// chrome.history.deleteRange doesn't remove entries if history Sync in enabled
+// remove from history tabs opened by Hidden Click
+chrome.history.onVisited.addListener(onVisited);
+function onVisited (historyItem) {	// TODO: search for bugs here (historyDelete variable)
+	if (historyDelete) {
+		chrome.history.deleteRange({
+			startTime: (Date.now() - historyRange),
+			endTime: (Date.now())
+		}, function () {});
+	}
+}
 
 function tabsOnCreated (tabInfo) {
-	chrome.tabs.update(tabInfo.id, {muted: true});
-	chrome.tabs.insertCSS(tabInfo.id, {code: '* { display: none }', runAt: 'document_start', allFrames: true});
+	chrome.tabs.update(tabInfo.id, {muted: true, autoDiscardable: true});
 }
 
 chrome.runtime.onMessage.addListener(
