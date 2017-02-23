@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener(
 			main(message, sender, sendResponse);
 		}
 
-		if (typeof message.enableClick !== 'undefined') {
+		if (message.enableClick != null) {
 			if (enabled) {
 				disable();
 			} else {
@@ -123,7 +123,7 @@ chrome.runtime.onMessage.addListener(
 			return;
 		}
 
-		if (typeof message.isEnabled !== 'undefined') {
+		if (message.isEnabled != null) {
 			sendResponse({enabled: enabled});
 			return;
 		}
@@ -131,7 +131,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 function main (message, sender, sendResponse) {
-	if (typeof message.href !== 'undefined') {
+	if (message.href != null) {
 		if (lastUrl === message.href) {	// TODO: make this obsolete, make it so you don't receive repeated messages
 			return;
 		}
@@ -149,7 +149,7 @@ function main (message, sender, sendResponse) {
 			w = win;
 		});
 
-		if (typeof w !== 'undefined') {
+		if (w != null) {
 			// if window is open
 			chrome.tabs.create(
 				{windowId: w.id,
@@ -163,7 +163,7 @@ function main (message, sender, sendResponse) {
 		return;
 	}
 
-	if (typeof message.clickedLink !== 'undefined') {
+	if (message.clickedLink != null) {
 		console.log('CLICKED A LINK');
 		click = true;
 		return;

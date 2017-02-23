@@ -5,13 +5,13 @@
 // @grant       none
 // ==/UserScript==
 
-if (typeof HiddenClick !== 'undefined') {
+if (HiddenClick != null) {
 	throw new Error('This is not an error, Hidden Click already ran in this page');
 }
 // assert that you ran on this page
 var HiddenClick = true;
 
-// define //
+/* define */
 
 // amount of time(in ms) after mouseover before page load
 var loadDelay = 0;
@@ -20,67 +20,7 @@ var crossOrigin = true;
 // true -> Links will not be opened on a new tab, only requests by XMLHttpRequest
 var background = false;
 
-// main //
-
-var body = document.querySelector('body');
-createEventsToChildElems(body);
-
-// observe changes to document to add events as needed
-var observer = new MutationObserver(function (mutations) {
-	for (var i = 0; i < mutations.length; i++) {
-		if (mutations[i].type === 'attributes') {
-			console.log(' \n mutation of type attributes: \n ', mutations[i]);
-		}
-		for (var j = 0; j < mutations[i].addedNodes.length; j++) {
-			createEventsToChildElems(mutations[i].addedNodes[j]);
-		}
-	}
-});
-
-observer.observe(body,
-	{ childList: true,
-	attributes: true,
-	attributeFilter: ['href'],
-	subtree: true });
-
-// adds events to child elems of argument that have href
-function createEventsToChildElems (elem) {
-	if (elem.querySelectorAll == null) {
-		return;	// TODO: this test is prob unnecessary if you dont call this on certain mutations (attributes?)
-	}
-
-	// add events to elements with links
-	var linkElems = elem.querySelectorAll('[href]');
-
-	if (elem.href) {
-		handleHrefElem(elem);
-	}
-
-	for (var i = 0; i < linkElems.length; i++) {
-		handleHrefElem(linkElems[i]);
-	}
-}
-
-function handleHrefElem (elem) {
-	if ((elem.getAttribute('HC-evnt')) ||
-	(elem.getAttribute('HC-requested')) ||
-	(typeof elem.href === 'undefined')) {
-		// [href=#] has .href undefined
-		return;
-	}
-
-	var sameDomain = elem.hostname === location.hostname;
-
-	if (sameDomain &&	nextPage(elem.pathname)) {
-		// if the link is to the next page of the current content
-		request(elem);
-	} else if (sameDomain || crossOrigin) {
-		// add events only to links to sameDomain, or if crossOrigin enabled
-		createEvents(elem);
-	}
-}
-
-// background mode
+/* background mode */
 var hoverXMLHttpRequest = new XMLHttpRequest();
 hoverXMLHttpRequest.onreadystatechange = function () {
 	if (hoverXMLHttpRequest.readyState === 4 &&
@@ -89,7 +29,7 @@ hoverXMLHttpRequest.onreadystatechange = function () {
 		var container = document.implementation.createHTMLDocument().documentElement;
 		container.innerHTML = hoverXMLHttpRequest.responseText;
 
-		// GET files from document
+		/* GET files from document */
 
 		// number of requests made
 		var nReq = 0;
@@ -123,8 +63,56 @@ hoverXMLHttpRequest.onreadystatechange = function () {
 	}
 };
 
+/**
+ * adds events to elem & elem childs, if they have valid links
+ * @param {Object} elem
+ */
+function createEventsToChildElems (elem) {
+	if (elem.querySelectorAll == null) {
+		return;	// TODO: this test is prob unnecessary if you dont call this on certain mutations (attributes?)
+	}
+	// add events to elements with links
+	var linkElems = elem.querySelectorAll('[href]');
+
+	if (elem.href != null) {
+		handleHrefElem(elem);
+	}
+
+	for (var i = 0; i < linkElems.length; i++) {
+		handleHrefElem(linkElems[i]);
+	}
+}
+
+/**
+ * adds events elem, if they have valid links
+ * @param {Object} elem
+ */
+function handleHrefElem (elem) {
+	var sameHost = elem.hostname === location.hostname;
+
+	if ((elem.getAttribute('HC-evnt')) ||
+	(elem.getAttribute('HC-requested')) ||
+	// (elem.download) || // TODO
+	(elem.href === '') ||
+	((elem.pathname + elem.hash + elem.search === '/') && sameHost)) {
+		return;
+	}
+
+	if (sameHost &&	isNextPage(elem.pathname)) {
+		// if the link is to the next page of the current content
+		request(elem);
+	} else if (sameHost || crossOrigin) {
+		// add events only to links to sameHost, or if crossOrigin enabled
+		createEvents(elem);
+	}
+}
+
+/**
+ * requests elem link and setRequestedAll(elem)
+ * @param {Object} elem
+ */
 function request (elem) {
-	console.log(' \n requested', elem.href);
+	console.log(' \n requested', elem.href, elem);
 	if (background) {
 		hoverXMLHttpRequest.open('GET', elem.href);
 		hoverXMLHttpRequest.send();
@@ -135,7 +123,10 @@ function request (elem) {
 	setRequestedAll(elem);
 }
 
-// sets all elements with the same link as elem as requested
+/**
+ * sets all elements with the same link as elem as requested
+ * @param {Object} elem
+ */
 function setRequestedAll (elem) {
 	var href;
 
@@ -149,8 +140,8 @@ function setRequestedAll (elem) {
 		href = elem.href;
 	}
 
-	console.log('setting all:', href, 'as requested \n ');
 	var linkElems = document.querySelectorAll('[href*="' + href + '"]');
+	console.log(' \n setting:', linkElems, 'as requested \n ');
 
 	for (var i = 0; i < linkElems.length; i++) {
 		linkElems[i].setAttribute('HC-requested', ' ');
@@ -188,7 +179,13 @@ function createEvents (elem) {
 	elem.setAttribute('HC-evnt', ' ');
 }
 
-function nextPage (pathname) {
+/**
+ * returns if given pathname is the next page of the current location content.
+ * doesn't test if its on the same hostname witch you should.
+ * @param {String} pathname
+ * @return {Boolean} isNextPage
+ */
+function isNextPage (pathname) {
 	var pathnameSplit = pathname.split('/');
 
 	if ((pathnameSplit.length > 2) &&
@@ -265,3 +262,24 @@ function requestDelay (elem) {
 		}
 	}
 }
+
+/* main */
+var body = document.querySelector('body');
+createEventsToChildElems(body);
+
+// observe changes to document to add events as needed
+var observer = new MutationObserver(function (mutations) {
+	for (var i = 0; i < mutations.length; i++) {
+		if (mutations[i].type === 'attributes') {
+			// console.log(' \n mutation of type attributes: \n ', mutations[i]);
+		}
+		for (var j = 0; j < mutations[i].addedNodes.length; j++) {
+			createEventsToChildElems(mutations[i].addedNodes[j]);
+		}
+	}
+});
+observer.observe(body,
+	{ childList: true,
+	attributes: true,
+	attributeFilter: ['href'],
+	subtree: true });
