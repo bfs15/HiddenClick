@@ -14,11 +14,11 @@ var HiddenClick = true;
 // define //
 
 // amount of time(in ms) after mouseover before page load
-var loadDelay = 800;
+var loadDelay = 0;
 // if you want to open links from other domains
 var crossOrigin = true;
 // true -> Links will not be opened on a new tab, only requests by XMLHttpRequest
-var background = true;
+var background = false;
 
 // main //
 
@@ -27,9 +27,10 @@ createEventsToChildElems(body);
 
 // observe changes to document to add events as needed
 var observer = new MutationObserver(function (mutations) {
-	// attribute mutation not only added nodes
-	console.log(' \n mutations \n ', mutations, '\n');
 	for (var i = 0; i < mutations.length; i++) {
+		if (mutations[i].type === 'attributes') {
+			console.log(' \n mutation of type attributes: \n ', mutations[i]);
+		}
 		for (var j = 0; j < mutations[i].addedNodes.length; j++) {
 			createEventsToChildElems(mutations[i].addedNodes[j]);
 		}
@@ -39,8 +40,7 @@ var observer = new MutationObserver(function (mutations) {
 observer.observe(body,
 	{ childList: true,
 	attributes: true,
-	attributeFilter: ['href'], // test this
-	characterData: true, // prob should be false
+	attributeFilter: ['href'],
 	subtree: true });
 
 // adds events to child elems of argument that have href
@@ -48,69 +48,79 @@ function createEventsToChildElems (elem) {
 	// add events to elements with links
 	var linkElems = elem.querySelectorAll('[href]');
 
-	linkElems.forEach(function (linkElem) {
-		if ((linkElem.getAttribute('HC-evnt')) ||
-		(linkElem.getAttribute('HC-requested')) ||
-		(typeof linkElem.href === 'undefined')) {
+	if (elem.href) {
+		handleHrefElem(elem);
+	}
+
+	for (var i = 0; i < linkElems.length; i++) {
+		handleHrefElem(linkElems[i]);
+	}
+}
+
+function handleHrefElem (elem) {
+	if ((elem.getAttribute('HC-evnt')) ||
+	(elem.getAttribute('HC-requested')) ||
+	(typeof elem.href === 'undefined')) {
 		// [href=#] has .href undefined
-			return;
-		}
+		return;
+	}
 
-		var sameDomain = linkElem.hostname === location.hostname;
+	var sameDomain = elem.hostname === location.hostname;
 
-		if (sameDomain &&	nextPage(linkElem.href)) {
+	if (sameDomain &&	nextPage(elem.pathname)) {
 		// if the link is to the next page of the current content
-			request(linkElem);
-		} else if (sameDomain || crossOrigin) {
+		request(elem);
+	} else if (sameDomain || crossOrigin) {
 		// add events only to links to sameDomain, or if crossOrigin enabled
-			createEvents(linkElem);
-		}
-	});
+		createEvents(elem);
+	}
 }
 
 // background mode
 var hoverXMLHttpRequest = new XMLHttpRequest();
 hoverXMLHttpRequest.onreadystatechange = function () {
-	if (hoverXMLHttpRequest.readyState === 4 && hoverXMLHttpRequest.status === 200) {
+	if (hoverXMLHttpRequest.readyState === 4 &&
+	hoverXMLHttpRequest.status === 200) {
 		// make responseText into a document
 		var container = document.implementation.createHTMLDocument().documentElement;
 		container.innerHTML = hoverXMLHttpRequest.responseText;
 
 		// GET files from document
-		var links = container.querySelectorAll('[src]');
-		links = links.concat(container.querySelectorAll('[href*=".css"]'));
-		console.log(' \n links gotten: \n ', links);
-		var xhrList = [];
-		for (var i = 0; i < links.length; i++) {
-			xhrList[i] = new XMLHttpRequest();
 
-			var url;
-			if (links[i].src) {
-				url = links[i].src;
-			} else if (links[i].href) {
-				url = links[i].href;
-			} else {
-				continue;
-			}
+		// number of requests made
+		var nReq = 0;
+		var selectors = ['[src]', '[href*=".css"]'];
 
-      // xhrList[i].withCredentials = true;
+		for (var s = 0; s < selectors.length; s++) {
+			var links = container.querySelectorAll(selectors[s]);
+			console.log(' \n links gotten for selector', selectors[s], ': \n ', links); // TODO: test background mode more
+			var xhrList = [];
+			for (var i = 0; i < links.length; i++) {
+				var url;
 
-			if (links[i].hostname === location.hostname) {
-				xhrList[i].withCredentials = true;
-			}
+				if (links[i].src != null) {
+					url = links[i].src;
+				} else if (links[i].href != null) {
+					url = links[i].href;
+				} else {
+					continue;
+				}
 
-			console.log('GET', url);
-			if (url) {
-				xhrList[i].withCredentials = true;
-				xhrList[i].open('GET', url);
-				xhrList[i].send();
+				console.log('GET', url);
+				if (url != null) {
+					xhrList[nReq] = new XMLHttpRequest();
+					xhrList[nReq].withCredentials = true;
+					xhrList[nReq].open('GET', url);
+					xhrList[nReq].send();
+					nReq++;
+				}
 			}
 		}
 	}
 };
 
 function request (elem) {
-	console.log('requested', elem.href);
+	console.log(' \n requested', elem.href);
 	if (background) {
 		hoverXMLHttpRequest.open('GET', elem.href);
 		hoverXMLHttpRequest.send();
@@ -131,7 +141,7 @@ function setRequestedAll (elem) {
 		href = elem.href;
 	}
 
-	console.log(' \n setting all:', href, 'as requested \n ');
+	console.log('setting all:', href, 'as requested \n ');
 	var linkElems = document.querySelectorAll('[href*="' + href + '"]');
 
 	linkElems.forEach(function (linkElem) {
@@ -155,7 +165,6 @@ function removeEvents (elem) {
 }
 
 function createEvents (elem) {
-	console.log('will create events for', elem);
 	if (elem.onmousemove == null) {
 		elem.setAttribute('HC-onmousemove', ' ');
 		elem.onmousemove = linkHover;
@@ -178,7 +187,7 @@ function nextPage (pathname) {
 	// if it it isn't /3.html
 	!(pathnameSplit[1] === location.pathname.split('/')[1])) {
 	// and if not same pathname beggining
-		return;
+		return false;
 	}
 
 	// link page number
@@ -186,11 +195,8 @@ function nextPage (pathname) {
 	// current location page number
 	var currNumber = pageNumber(location.pathname);
 
-	if (isNaN(currNumber) || isNaN(nextNumber)) {
-		return false;
-	}
-
-	if (nextNumber === ((currNumber + 1) % 10)) {
+	if ((nextNumber === ((currNumber + 1) % 10)) &&
+	!(isNaN(currNumber) || isNaN(nextNumber))) {
 		return true;
 	}
 
