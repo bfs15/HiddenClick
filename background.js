@@ -37,7 +37,7 @@ function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	// on normal window
 		if (changeInfo.status === 'loading') {
 			historyDelete = false;
-			discardOtherTabs(tabId);
+			discardOtherTabs(tabInfo);	// TODO: don't call this on any window load, what if you use middle click on a link?
 			executeScript(tabId);
 		}
 	} else {
@@ -49,21 +49,27 @@ function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	}
 }
 
-function discardOtherTabs (tabId) {
-	chrome.tabs.get(tabId, function (tab) {
-		chrome.tabs.getAllInWindow(wId, function (tabs) {
-			for (var i = 1; i < tabs.length; i++) {
-				if (tabs[i].url === tab.url) {
-				// when you find the same tab that is loading on the HC window
-					// let it load and discard all remaining tabs
-					for (var j = i + 1; j < tabs.length; j++) {
-						chrome.tabs.discard(tabs[j].id);
+function discardOtherTabs (tab) {
+	chrome.tabs.getAllInWindow(wId, function (tabs) {
+		for (var i = 1; i < tabs.length; i++) {
+			// go through the tabs discarting them
+			// until you find the one that is loading
+			if (tabs[i].url === tab.url) {
+				// let it load and discard all remaining tabs
+				for (var j = i + 1; j < tabs.length; j++) {
+					if (tabs[j].discarded) {
+					// on the first already discarded tab
+						return;// so you don't go through old tabs
 					}
-					return;
+					chrome.tabs.discard(tabs[j].id);
 				}
+				return;
+			}
+
+			if (!tabs[i].discarded) {
 				chrome.tabs.discard(tabs[i].id);
 			}
-		});
+		}
 	});
 }
 
@@ -132,7 +138,7 @@ function main (message, sender, sendResponse) {
 
 		lastUrl = message.href;
 
-		// try {	// TODO
+		// try {	// TODO instead of chrome.windows.get(wId, function (win) {to see if win != null
 		// 	chrome.tabs.create({windowId: w.id, url: lastUrl, active: false}, tabsOnCreated);
 		// } catch (e) {
 		// 	// Hidden Click window closed, opening another
@@ -145,7 +151,11 @@ function main (message, sender, sendResponse) {
 
 		if (typeof w !== 'undefined') {
 			// if window is open
-			chrome.tabs.create({windowId: w.id, url: lastUrl, active: false}, tabsOnCreated);
+			chrome.tabs.create(
+				{windowId: w.id,
+				index: 1,
+				url: lastUrl,
+				active: false}, tabsOnCreated);
 		} else {
 			createWindow();
 		}

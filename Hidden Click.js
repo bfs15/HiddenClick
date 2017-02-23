@@ -45,6 +45,10 @@ observer.observe(body,
 
 // adds events to child elems of argument that have href
 function createEventsToChildElems (elem) {
+	if (elem.querySelectorAll == null) {
+		return;	// TODO: this test is prob unnecessary if you dont call this on certain mutations (attributes?)
+	}
+
 	// add events to elements with links
 	var linkElems = elem.querySelectorAll('[href]');
 
