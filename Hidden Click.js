@@ -136,7 +136,11 @@ function setRequestedAll (elem) {
 	var href;
 
 	if (elem.hostname === location.hostname) {
-		href = elem.pathname + elem.search;	// for cases of relative href="/pathname?search"
+		// for cases of relative href="/pathname?pageNumber"
+		href = elem.pathname + elem.search;
+		if (href.length === 1) {
+			return;	// dont set all href*="/" as requested
+		}
 	} else {
 		href = elem.href;
 	}
@@ -144,10 +148,10 @@ function setRequestedAll (elem) {
 	console.log('setting all:', href, 'as requested \n ');
 	var linkElems = document.querySelectorAll('[href*="' + href + '"]');
 
-	linkElems.forEach(function (linkElem) {
-		linkElem.setAttribute('HC-requested', ' ');
-		removeEvents(linkElem);
-	});
+	for (var i = 0; i < linkElems.length; i++) {
+		linkElems[i].setAttribute('HC-requested', ' ');
+		removeEvents(linkElems[i]);
+	}
 }
 
 function removeEvents (elem) {
@@ -250,7 +254,7 @@ function requestDelay (elem) {
 	// element HC-hovered at the moment
 	var currentElem = document.querySelector('[HC-hovered]');
 
-	if (currentElem !== null) {
+	if (currentElem != null) {
 		if (elem.href === currentElem.href) {
 		// if mouse is still hovering the same link
 			request(elem);
