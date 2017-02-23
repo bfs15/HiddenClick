@@ -74,7 +74,9 @@ function executeScript (tabId) {
 }
 
 function createWindow () {
-	chrome.windows.create({ url: chrome.extension.getURL('options.html'),
+	chrome.windows.create({
+		// TODO: settings.html instead
+		url: chrome.extension.getURL('browser_action/browser_action.html'),
 		state: 'minimized' }, onWindowOpen);
 }
 

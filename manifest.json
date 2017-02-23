@@ -1,5 +1,4 @@
 {
-
   "manifest_version": 2,
   "name": "Hidden Click",
   "version": "1.0",
@@ -15,12 +14,31 @@
   },
   "browser_action": {
     "default_icon": "icons/icon.png",
-    "default_popup": "browser_action.html"
+    "default_popup": "browser_action/browser_action.html"
   },
 
   "web_accessible_resources": [
     "Hidden Click.js"
   ],
 
-  "permissions": [ "tabs", "webRequest", "<all_urls>", "activeTab", "alarms", "bookmarks", "contextMenus", "cookies", "downloads", "downloads.open", "history", "idle", "management", "nativeMessaging", "notifications", "storage", "tabs", "webNavigation", "webRequest", "webRequestBlocking" ]
+  "permissions": ["tabs",
+									"webRequest",
+									"<all_urls>",
+									"activeTab",
+									"alarms",
+									"bookmarks",
+									"contextMenus",
+									"cookies",
+									"downloads",
+									"downloads.open",
+									"history",
+									"idle",
+									"management",
+									"nativeMessaging",
+									"notifications",
+									"storage",
+									"tabs",
+									"webNavigation",
+									"webRequest",
+									"webRequestBlocking"]
 }

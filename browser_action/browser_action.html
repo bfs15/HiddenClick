@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Hidden Click</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../pure-release-0.6.2/pure-min.css">
+		<link rel="stylesheet" href="browser_action.css"/>
+  </head>
+
+  <body>
+		<div>
+			<button class="pure-button pure-button-primary enable">On</button>
+		</div>
+		<div>
+			<button class="pure-button" id="whitelist">Whitelist this domain</button>
+		</div>
+		<div>
+			<button class="pure-button" id="blacklist">Blacklist this domain</button>
+		</div>
+
+    <form class="pure-form">
+      <fieldset>
+
+				<p>Page request hover delay</p>
+        <input type="delay" placeholder="">
+				<br>
+				<p>Maximum tabs to load, 0 is infinite</p>
+        <input type="nTabs" placeholder="">
+				<div>
+	        <label for="background-mode">
+	          <input id="background-mode" type="checkbox" />
+						Background mode
+	        </label>
+				</div>
+				<div>
+					<label for="keepLoadingLinkOnClick">
+						<input id="keepLoadingLinkOnClick" type="checkbox">
+						Keep loading link on click
+					</label>
+				</div>
+				<div>
+					<label for="continueLoadTabsOnActivated">
+						<input id="continueLoadoadTabsOnActivated" type="checkbox">
+						Continue loading hovered items on tab change
+					</label>
+				</div>
+				<div>
+					<label for="allDomains">
+						<input id="allDomains" type="checkbox">
+						Run on ALL domains (override)
+					</label>
+				</div>
+
+      </fieldset>
+    </form>
+
+    <script src="browser_action.js"></script>
+  </body>
+
+</html>

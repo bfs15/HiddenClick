@@ -17,6 +17,8 @@ var HiddenClick = true;
 var loadDelay = 800;
 // if you want to open links from other domains
 var crossOrigin = true;
+// true -> Links will not be opened on a new tab, only requests by XMLHttpRequest
+var background = true;
 
 // main //
 
@@ -66,10 +68,56 @@ function createEventsToChildElems (elem) {
 	});
 }
 
+// background mode
+var hoverXMLHttpRequest = new XMLHttpRequest();
+hoverXMLHttpRequest.onreadystatechange = function () {
+	if (hoverXMLHttpRequest.readyState === 4 && hoverXMLHttpRequest.status === 200) {
+		// make responseText into a document
+		var container = document.implementation.createHTMLDocument().documentElement;
+		container.innerHTML = hoverXMLHttpRequest.responseText;
+
+		// GET files from document
+		var links = container.querySelectorAll('[src]');
+		links = links.concat(container.querySelectorAll('[href*=".css"]'));
+		console.log(' \n links gotten: \n ', links);
+		var xhrList = [];
+		for (var i = 0; i < links.length; i++) {
+			xhrList[i] = new XMLHttpRequest();
+
+			var url;
+			if (links[i].src) {
+				url = links[i].src;
+			} else if (links[i].href) {
+				url = links[i].href;
+			} else {
+				continue;
+			}
+
+      // xhrList[i].withCredentials = true;
+
+			if (links[i].hostname === location.hostname) {
+				xhrList[i].withCredentials = true;
+			}
+
+			console.log('GET', url);
+			if (url) {
+				xhrList[i].withCredentials = true;
+				xhrList[i].open('GET', url);
+				xhrList[i].send();
+			}
+		}
+	}
+};
+
 function request (elem) {
-	// send message to background.js
 	console.log('requested', elem.href);
-	chrome.runtime.sendMessage({href: elem.href});
+	if (background) {
+		hoverXMLHttpRequest.open('GET', elem.href);
+		hoverXMLHttpRequest.send();
+	} else {
+		// send message to background.js
+		chrome.runtime.sendMessage({href: elem.href});
+	}
 	setRequestedAll(elem);
 }
 

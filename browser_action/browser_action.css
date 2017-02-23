@@ -1,0 +1,29 @@
+html, body {
+	width: 250px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 14px;
+}
+
+.enable {
+  font-size: 22px;
+}
+
+.options {
+	width: auto;
+}
+
+.pure-button {
+  margin-top: 10px;
+}
+
+.first-buttons {
+	text-align:center;
+	margin:auto;
+}
+
+p {
+  -webkit-margin-before: 0.5em;
+  -webkit-margin-after: 0.2em;
+}
