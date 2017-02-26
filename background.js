@@ -1,6 +1,6 @@
 
 // last url that was on a active, loading tab
-var lastActiveTabUrl;
+var lastActiveTabUrl = '';
 // last defined window object
 var w;
 // last defined window id
@@ -44,23 +44,28 @@ function createWindow () {
 function tabsOnActivated (tabInfo) {
 	executeScript(tabInfo.tabId);
 
-	if (tabInfo.status === 'loading') {
+	if (tabInfo.status === 'loading' && tabInfo.url !== lastActiveTabUrl) {
 		discardOtherTabs(tabInfo);
 	}
+
+	lastActiveTabUrl = tabInfo.url;
 }
 
 function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	if (tabInfo.windowId !== wId) {
 	// on normal window
-		executeScript(tabInfo.tabId);
-
 		if (changeInfo.status === 'loading') {
 			historyDelete = false;
+		}
+		if (tabInfo.active) {
+			if (tabInfo.url !== lastActiveTabUrl) {
+				executeScript(tabInfo.tabId);
 
-			if (tabInfo.active && tabInfo.url !== lastActiveTabUrl) {
-				console.log(tabInfo.url, ' \n other urls discarded');
-				discardOtherTabs(tabInfo);
-				lastActiveTabUrl = tabInfo.url;
+				if (changeInfo.status === 'loading') {
+					discardOtherTabs(tabInfo);
+
+					lastActiveTabUrl = (' ' + tabInfo.url).slice(1);
+				}
 			}
 		}
 	} else {
@@ -68,13 +73,32 @@ function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 		historyDelete = true;
 
 		if (changeInfo.status === 'complete' && tabInfo.index !== 0) {
-			chrome.tabs.discard(tabId);
+			try {
+				chrome.tabs.discard(tabInfo.id);
+			} catch (e) {
+				chrome.tabs.remove(tabInfo.id);
+			}
 		}
 	}
 }
 
 function discardOtherTabs (tab) {
-	chrome.tabs.getAllInWindow(wId, function (tabs) {
+	console.log(tab.url, ' \n other urls will be discarded');
+
+	try {
+		chrome.tabs.query(
+			{
+				windowId: wId,
+				discarded: false
+			}, clean);
+	} catch (e) {
+		chrome.tabs.query(
+			{
+				windowId: wId
+			}, clean);
+	}
+
+	function clean (tabs) {
 		for (var i = 1; i < tabs.length; i++) {
 			// go through the tabs discarting them
 			// until you find the one that is loading
@@ -82,26 +106,36 @@ function discardOtherTabs (tab) {
 				// let it load and discard all remaining tabs
 				for (var j = i + 1; j < tabs.length; j++) {
 					if (tabs[j].discarded) {
-					// on the first already discarded tab
+						// on the first already discarded tab
+						console.log('discard return', tabs[j], ' \n ', tabs[j].url);
 						return;// so you don't go through old tabs
 					}
-					chrome.tabs.discard(tabs[j].id);
+					console.log('discard()?', tabs[j], ' \n ', tabs[j].url);
+					try {
+						chrome.tabs.discard(tabs[j].id);
+					} catch (e) {
+						chrome.tabs.remove(tabs[j].id);
+					}
 				}
 				return;
 			}
-
+			console.log('discard()?', tabs[i], ' \n ', tabs[i].url);
 			if (!tabs[i].discarded) {
-				chrome.tabs.discard(tabs[i].id);
+				try {
+					chrome.tabs.discard(tabs[i].id);
+				} catch (e) {
+					chrome.tabs.remove(tabs[i].id);
+				}
 			}
 		}
-	});
+	}
 }
 
 function executeScript (tabId) {
 	chrome.tabs.executeScript(tabId,
 		{
 			file: 'Hidden Click.js',
-			runAt: 'document_end'
+			runAt: 'document_idle'
 		});
 }
 
@@ -191,9 +225,16 @@ function main (message, sender, sendResponse) {
  * @param  {[Tab]} tabInfo
  */
 function tabsOnCreated (tabInfo) {
-	chrome.tabs.update(tabInfo.id,
-		{
-			muted: true,
-			autoDiscardable: true
-		});
+	try {
+		chrome.tabs.update(tabInfo.id,
+			{
+				muted: true,
+				autoDiscardable: true
+			});
+	} catch (e) {
+		chrome.tabs.update(tabInfo.id,
+			{
+				muted: true
+			});
+	}
 }
