@@ -6,10 +6,11 @@
 // ==/UserScript==
 
 if (HiddenClick != null) {
-	throw new Error('This is not an error, Hidden Click already ran in this page');
+	throw new Error('Not an error, Hidden Click already ran on this page');
 }
 // assert that you ran on this page
 var HiddenClick = true;
+console.log('Hidden Click initialized');
 
 /* define */
 
@@ -17,46 +18,81 @@ var HiddenClick = true;
 var loadDelay = 0;
 // if you want to open links from other domains
 var crossOrigin = true;
-// true -> Links will not be opened on a new tab, only requests by XMLHttpRequest
+
+// true -> links will not be opened on a new tab
 var background = false;
+	// true -> will make XMLHttpRequests instead of appending to the current doc
+var XMLHttpMode = false;
+
+var HCdiv;
+
+createEventsToChildElems(document.body);
+
+createHCdiv();
+
+// div to insert content to load
+function createHCdiv () {
+	HCdiv = document.createElement('div');
+	HCdiv.id = 'Hidden Click';
+	HCdiv.style = 'display: none;';
+
+	document.body.appendChild(HCdiv);
+
+	console.log('createHCdiv()', HCdiv);
+}
 
 /* background mode */
-var hoverXMLHttpRequest = new XMLHttpRequest();
-hoverXMLHttpRequest.onreadystatechange = function () {
-	if (hoverXMLHttpRequest.readyState === 4 &&
-	hoverXMLHttpRequest.status === 200) {
+var hoverReq = new XMLHttpRequest();
+hoverReq.onreadystatechange = function requestLinksFromDoc () {
+	if (hoverReq.readyState === 4 &&
+	hoverReq.status === 200) {
 		// make responseText into a document
 		var container = document.implementation.createHTMLDocument().documentElement;
-		container.innerHTML = hoverXMLHttpRequest.responseText;
+		container.innerHTML = hoverReq.responseText;
 
-		/* GET files from document */
+		if (document.getElementById('Hidden Click') == null) {
+			createHCdiv();
+		} else {
+			console.log('');
+		}
+
+		if (document.getElementById('Hidden Click') == null) {
+			console.log('what the f');
+		}
 
 		// number of requests made
 		var nReq = 0;
 		var selectors = ['[src]', '[href*=".css"]'];
+		var type = ['src', 'href'];
 
+		// Get different link types
 		for (var s = 0; s < selectors.length; s++) {
+			// Query links with that selector
 			var links = container.querySelectorAll(selectors[s]);
-			console.log(' \n links gotten for selector', selectors[s], ': \n ', links); // TODO: test background mode more
+			console.log(' \n links gotten for selector', selectors[s], ' \n ', links); // TODO test background mode more
 			var xhrList = [];
+
+			// For all links...
 			for (var i = 0; i < links.length; i++) {
-				var url;
-
-				if (links[i].src != null) {
-					url = links[i].src;
-				} else if (links[i].href != null) {
-					url = links[i].href;
-				} else {
-					continue;
-				}
-
-				console.log('GET', url);
-				if (url != null) {
-					xhrList[nReq] = new XMLHttpRequest();
-					xhrList[nReq].withCredentials = true;
-					xhrList[nReq].open('GET', url);
-					xhrList[nReq].send();
-					nReq++;
+				if ((links[i].getAttribute(type[s]) != null) &&
+				(links[i].getAttribute(type[s]) !== '')) {
+					if (XMLHttpMode) {
+						xhrList[nReq] = new XMLHttpRequest();
+						xhrList[nReq].withCredentials = true;
+						xhrList[nReq].open('GET', links[i][type[s]]);
+						xhrList[nReq].send();
+						nReq++;
+					} else {
+						var div = document.getElementById('Hidden Click');
+						console.log('actual div', div);
+						if (div == null) {
+							createHCdiv();
+						}
+						console.log('HCdiv', HCdiv, links[i].getAttribute(type[s]));
+						var elem = document.createElement(links[i].tagName);
+						elem[type[s]] = links[i].getAttribute(type[s]);
+						HCdiv.appendChild(elem);
+					}
 				}
 			}
 		}
@@ -69,7 +105,7 @@ hoverXMLHttpRequest.onreadystatechange = function () {
  */
 function createEventsToChildElems (elem) {
 	if (elem.querySelectorAll == null) {
-		return;	// TODO: this test is prob unnecessary if you dont call this on certain mutations (attributes?)
+		return;	// TODO this test is prob unnecessary if you dont call this on certain mutations (attributes?)
 	}
 	// add events to elements with links
 	var linkElems = elem.querySelectorAll('[href]');
@@ -100,6 +136,7 @@ function handleHrefElem (elem) {
 
 	if (sameHost &&	isNextPage(elem.pathname)) {
 		// if the link is to the next page of the current content
+		console.log('"next page" request');
 		request(elem);
 	} else if (sameHost || crossOrigin) {
 		// add events only to links to sameHost, or if crossOrigin enabled
@@ -114,11 +151,11 @@ function handleHrefElem (elem) {
 function request (elem) {
 	console.log(' \n requested', elem.href, elem);
 	if (background) {
-		hoverXMLHttpRequest.open('GET', elem.href);
-		hoverXMLHttpRequest.send();
+		hoverReq.open('GET', elem.href);
+		hoverReq.send();
 	} else {
 		// send message to background.js
-		chrome.runtime.sendMessage({href: elem.href});
+		chrome.runtime.sendMessage({request: elem.href});
 	}
 	setRequestedAll(elem);
 }
@@ -160,7 +197,6 @@ function removeEvents (elem) {
 	}
 	elem.removeEventListener('mouseover', linkHover);
 	elem.removeEventListener('mouseout', linkHout);
-	elem.removeEventListener('onclick', onClick);
 }
 
 function createEvents (elem) {
@@ -174,7 +210,6 @@ function createEvents (elem) {
 	}
 	elem.addEventListener('mouseover', linkHover);
 	elem.addEventListener('mouseout', linkHout);
-	elem.addEventListener('onclick', onClick);
 
 	elem.setAttribute('HC-evnt', ' ');
 }
@@ -244,42 +279,35 @@ function linkHover ()	{
 	}, loadDelay);
 }
 
-function onClick () {
-	// send message to background.js
-	chrome.runtime.sendMessage({clickedLink: true});
-}
-
 function requestDelay (elem) {
 	elem.removeAttribute('HC-requestDelay');
 
 	// element HC-hovered at the moment
-	var currentElem = document.querySelector('[HC-hovered]');
+	var currentElems = document.querySelectorAll('[HC-hovered]');
 
-	if (currentElem != null) {
-		if (elem.href === currentElem.href) {
+	for (var i = 0; i < currentElems.length; i++) {
+		if (elem.href === currentElems[i].href) {
 		// if mouse is still hovering the same link
 			request(elem);
 		}
 	}
 }
 
-/* main */
-var body = document.querySelector('body');
-createEventsToChildElems(body);
-
 // observe changes to document to add events as needed
 var observer = new MutationObserver(function (mutations) {
 	for (var i = 0; i < mutations.length; i++) {
 		if (mutations[i].type === 'attributes') {
-			// console.log(' \n mutation of type attributes: \n ', mutations[i]);
+			// console.log(' \n mutation of type attributes \n ', mutations[i]);
 		}
 		for (var j = 0; j < mutations[i].addedNodes.length; j++) {
 			createEventsToChildElems(mutations[i].addedNodes[j]);
 		}
 	}
 });
-observer.observe(body,
-	{ childList: true,
-	attributes: true,
-	attributeFilter: ['href'],
-	subtree: true });
+observer.observe(document.body,
+	{
+		childList: true,
+		attributes: true,
+		attributeFilter: ['href'],
+		subtree: true
+	});

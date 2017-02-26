@@ -1,13 +1,11 @@
 
-// last url received from document script (by message)
-var lastUrl;
+// last url that was on a active, loading tab
+var lastActiveTabUrl;
 // last defined window object
 var w;
 // last defined window id
 var wId = -1;
-
-var click = false;
-
+// state of the script
 var enabled = true;
 
 enable();
@@ -26,23 +24,49 @@ function disable () {
 	enabled = false;
 }
 
-function tabsOnActivated (activeInfo) {
-	executeScript(activeInfo.tabId);
+/**
+ * Creates HiddenClick window
+ */
+function createWindow () {
+	// TODO settings.html instead
+	chrome.windows.create(
+		{
+			url: chrome.extension.getURL('browser_action/browser_action.html'),
+			state: 'minimized'
+		}, onWindowOpen);
 }
 
-var historyDelete = false; // see onVisited
+/**
+ * When a tab is activated, executeScript and
+ * if it's loading, 'discardOtherTabs'
+ * @param  {[Tab]} tabInfo
+ */
+function tabsOnActivated (tabInfo) {
+	executeScript(tabInfo.tabId);
+
+	if (tabInfo.status === 'loading') {
+		discardOtherTabs(tabInfo);
+	}
+}
 
 function tabsOnUpdated (tabId, changeInfo, tabInfo) {
 	if (tabInfo.windowId !== wId) {
 	// on normal window
+		executeScript(tabInfo.tabId);
+
 		if (changeInfo.status === 'loading') {
 			historyDelete = false;
-			discardOtherTabs(tabInfo);	// TODO: don't call this on any window load, what if you use middle click on a link?
-			executeScript(tabId);
+
+			if (tabInfo.active && tabInfo.url !== lastActiveTabUrl) {
+				console.log(tabInfo.url, ' \n other urls discarded');
+				discardOtherTabs(tabInfo);
+				lastActiveTabUrl = tabInfo.url;
+			}
 		}
 	} else {
 	// on Hidden Click window
 		historyDelete = true;
+
 		if (changeInfo.status === 'complete' && tabInfo.index !== 0) {
 			chrome.tabs.discard(tabId);
 		}
@@ -75,15 +99,10 @@ function discardOtherTabs (tab) {
 
 function executeScript (tabId) {
 	chrome.tabs.executeScript(tabId,
-		{file: 'Hidden Click.js',
-		runAt: 'document_end'});
-}
-
-function createWindow () {
-	chrome.windows.create({
-		// TODO: settings.html instead
-		url: chrome.extension.getURL('browser_action/browser_action.html'),
-		state: 'minimized' }, onWindowOpen);
+		{
+			file: 'Hidden Click.js',
+			runAt: 'document_end'
+		});
 }
 
 function onWindowOpen (win) {
@@ -91,21 +110,28 @@ function onWindowOpen (win) {
 	wId = win.id;
 }
 
-var historyRange = 100;
-// chrome.history.deleteRange doesn't remove entries if history Sync in enabled
-// remove from history tabs opened by Hidden Click
 chrome.history.onVisited.addListener(onVisited);
-function onVisited (historyItem) {	// TODO: search for bugs here (historyDelete variable)
-	if (historyDelete) {
-		chrome.history.deleteRange({
-			startTime: (Date.now() - historyRange),
-			endTime: (Date.now())
-		}, function () {});
-	}
-}
 
-function tabsOnCreated (tabInfo) {
-	chrome.tabs.update(tabInfo.id, {muted: true, autoDiscardable: true});
+// constant
+var historyRange = 100;
+
+// static
+var historyDelete = false;
+
+/**
+ * Removes automatically from history tabs opened by Hidden Click.
+ * Warning chrome.history.deleteRange doesn't remove entries if
+ * history Sync is enabled
+ * @param  {[historyItem]} historyItem
+ */
+function onVisited (historyItem) {	// TODO search for bugs here (historyDelete variable)
+	if (historyDelete) {
+		chrome.history.deleteRange(
+			{
+				startTime: (Date.now() - historyRange),
+				endTime: (Date.now())
+			}, function () {});
+	}
 }
 
 chrome.runtime.onMessage.addListener(
@@ -131,15 +157,9 @@ chrome.runtime.onMessage.addListener(
 );
 
 function main (message, sender, sendResponse) {
-	if (message.href != null) {
-		if (lastUrl === message.href) {	// TODO: make this obsolete, make it so you don't receive repeated messages
-			return;
-		}
-
-		lastUrl = message.href;
-
+	if (message.request != null) {
 		// try {	// TODO instead of chrome.windows.get(wId, function (win) {to see if win != null
-		// 	chrome.tabs.create({windowId: w.id, url: lastUrl, active: false}, tabsOnCreated);
+		// 	chrome.tabs.create({windowId: w.id, url: message.request, active: false}, tabsOnCreated);
 		// } catch (e) {
 		// 	// Hidden Click window closed, opening another
 		// 	createWindow();
@@ -152,20 +172,28 @@ function main (message, sender, sendResponse) {
 		if (w != null) {
 			// if window is open
 			chrome.tabs.create(
-				{windowId: w.id,
-				index: 1,
-				url: lastUrl,
-				active: false}, tabsOnCreated);
+				{
+					windowId: w.id,
+					index: 1,
+					url: message.request,
+					active: false
+				}, tabsOnCreated);
 		} else {
 			createWindow();
 		}
 
 		return;
 	}
+}
 
-	if (message.clickedLink != null) {
-		console.log('CLICKED A LINK');
-		click = true;
-		return;
-	}
+/**
+ * When tab is created, mute is and set autoDiscardable
+ * @param  {[Tab]} tabInfo
+ */
+function tabsOnCreated (tabInfo) {
+	chrome.tabs.update(tabInfo.id,
+		{
+			muted: true,
+			autoDiscardable: true
+		});
 }
