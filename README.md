@@ -7,8 +7,8 @@ Blazing fast navigation you will never want to go back from.
 Frees tabs after loading is complete, or if you load/activate another page**
 
 ## Read Before Usage
-* **Internet usage will increase significantly when browsing the web**
-* **If you use window mode turn off chrome history sync. If you don't the extension will add hovered links to history. Extensions can remove history items reliably only with sync off**
+* **Internet usage will increase significantly when browsing the web, as expected**
+* **If you use window mode turn off chrome history sync. If you don't the extension will add hovered links to history. Extensions can remove history items reliably only with sync off (chrome limitation sadly) **
 
 ## Background Mode
 The script will get the HTML of the hovered link and requests the content it finds in it
